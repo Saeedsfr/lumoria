@@ -18,35 +18,49 @@ export function isDeployed(): boolean {
 
 /* ── SAP Balance ──────────────────────────────────────────────── */
 
-/**
- * موجودی SAP کاربر را از tonapi.io می‌خونه
- */
+function toRawAddr(addr: string): string {
+  // اگه قبلاً raw هست (0:hex) همون رو برگردون
+  if (/^-?[0-9]+:[0-9a-fA-F]{64}$/.test(addr)) return addr;
+  // base64url → bytes → workchain:hex
+  const b64 = addr.replace(/-/g, "+").replace(/_/g, "/");
+  const buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const wc  = buf[1] === 255 ? -1 : buf[1];
+  const hex = Array.from(buf.slice(2, 34)).map(x => x.toString(16).padStart(2, "0")).join("");
+  return `${wc}:${hex}`;
+}
+
 export async function getSapBalance(userAddr: string): Promise<string> {
   if (!isDeployed() || !userAddr) return "0";
   try {
-    const res = await fetch(`${TONAPI}/accounts/${userAddr}/jettons`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) return "0";
-    const data = await res.json() as {
-      balances: Array<{ balance: string; jetton: { address: string } }>;
+    const masterRaw = toRawAddr(CONTRACTS.SAPJettonMaster);
+    const userRaw   = toRawAddr(userAddr);
+
+    // گام ۱: آدرس SAP wallet کاربر از getter قرارداد
+    const wRes = await fetch(
+      `${TONAPI}/blockchain/accounts/${masterRaw}/methods/get_wallet_address?args=${userRaw}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!wRes.ok) return "0";
+    const wData = await wRes.json() as {
+      decoded?: { jetton_wallet_address?: string };
     };
+    const walletRaw = wData.decoded?.jetton_wallet_address;
+    if (!walletRaw) return "0";
 
-    const sapMaster = CONTRACTS.SAPJettonMaster.toLowerCase();
+    // گام ۲: balance از SAP wallet
+    const bRes = await fetch(
+      `${TONAPI}/blockchain/accounts/${walletRaw}/methods/balance`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!bRes.ok) return "0";
+    const bData = await bRes.json() as {
+      success?: boolean;
+      stack?: Array<{ type: string; num: string }>;
+    };
+    if (!bData.success || !bData.stack?.[0]) return "0";
 
-    const entry = (data.balances ?? []).find(b => {
-      const jAddr = (b.jetton?.address ?? "").toLowerCase();
-      // Direct match (both raw format "0:hex")
-      if (jAddr === sapMaster) return true;
-      // Strip all non-hex chars except colon and compare last 64 chars (the 32-byte hash)
-      const cleanJ = jAddr.replace(/[^0-9a-f]/g, "");
-      const cleanM = sapMaster.replace(/[^0-9a-f]/g, "");
-      return cleanJ.length >= 64 && cleanM.length >= 64 &&
-        cleanJ.slice(-64) === cleanM.slice(-64);
-    });
-
-    if (!entry) return "0";
-    return (Number(BigInt(entry.balance)) / 1e9).toFixed(1);
+    const nano = BigInt(bData.stack[0].num);
+    return (Number(nano) / 1e9).toFixed(1);
   } catch {
     return "0";
   }
