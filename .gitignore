@@ -1,0 +1,39 @@
+# ── Secrets (NEVER commit) ──────────────────────────────
+.env
+.env.local
+.env.testnet
+.env.production
+.env.*.local
+*.pem
+*.key
+*.p12
+
+# ── Node / JS ────────────────────────────────────────────
+node_modules/
+dist/
+.cache/
+tsconfig.tsbuildinfo
+
+# ── Contracts build ──────────────────────────────────────
+contracts/build/
+contracts/temp/
+
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+venv/
+simulation/output/
+
+# ── Claude Code ──────────────────────────────────────────
+.claude/
+
+# ── OS / Editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

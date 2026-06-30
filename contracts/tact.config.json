@@ -1,0 +1,22 @@
+{
+  "projects": [
+    {
+      "name": "SAPJettonMaster",
+      "path": "./sources/SAP.tact",
+      "output": "./build/SAP",
+      "options": { "debug": false, "external": false }
+    },
+    {
+      "name": "LandCollection",
+      "path": "./sources/LandNFT.tact",
+      "output": "./build/LandNFT",
+      "options": { "debug": false, "external": false }
+    },
+    {
+      "name": "CropManager",
+      "path": "./sources/CropManager.tact",
+      "output": "./build/CropManager",
+      "options": { "debug": false, "external": false }
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+/* ── Lumoria Global Styles — Void Garden Edition ────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #04030A;
+  color: #EDE9FF;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  direction: rtl;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* ── Noise texture overlay ───────────────────────────────────────── */
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+/* ── Base Keyframes ──────────────────────────────────────────────── */
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.04); }
+}
+
+@keyframes float-up {
+  0%   { transform: translateY(0) scale(1);     opacity: 1; }
+  100% { transform: translateY(-90px) scale(.7); opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: .7; }
+  100% { transform: scale(2.4); opacity: 0;  }
+}
+
+@keyframes harvest-pulse {
+  0%, 100% {
+    box-shadow: 0 0 24px rgba(247,204,60,.5), 0 0 70px rgba(247,204,60,.2),
+                inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  50% {
+    box-shadow: 0 0 44px rgba(247,204,60,.8), 0 0 110px rgba(247,204,60,.4),
+                inset 0 1px 0 rgba(255,255,255,.35);
+  }
+}
+
+@keyframes plant-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(58,255,160,.35), 0 0 50px rgba(58,255,160,.12); }
+  50%       { box-shadow: 0 0 32px rgba(58,255,160,.6),  0 0 80px rgba(58,255,160,.25); }
+}
+
+@keyframes shimmer-gold {
+  0%   { background-position: -300% center; }
+  100% { background-position:  300% center; }
+}
+
+@keyframes shimmer-green {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50%       { transform: rotate(4deg); }
+}
+
+@keyframes fruit-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+@keyframes root-flow {
+  0%   { stroke-dashoffset: 200; opacity: 0; }
+  20%  { opacity: .7; }
+  80%  { opacity: .5; }
+  100% { stroke-dashoffset: 0; opacity: .4; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: .6; }
+  50%       { opacity: 1; }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(14px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(14px) rotate(-360deg); }
+}
+
+@keyframes slide-in-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes pop-in {
+  0%   { transform: scale(.88); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes counter-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Glass card base ─────────────────────────────────────────────── */
+.glass {
+  background: rgba(13, 11, 34, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* ── Glow border ─────────────────────────────────────────────────── */
+.border-glow {
+  border-color: rgba(58, 255, 160, 0.22);
+}

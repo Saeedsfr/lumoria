@@ -1,0 +1,31 @@
+{
+  "name": "lumoria-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@telegram-apps/sdk": "^3.11.8",
+    "@ton/core": "^0.63.1",
+    "@ton/ton": "^16.3.0",
+    "@tonconnect/ui-react": "^3.0.0",
+    "autoprefixer": "^10.5.2",
+    "buffer": "^6.0.3",
+    "framer-motion": "^12.42.0",
+    "postcss": "^8.5.15",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}
