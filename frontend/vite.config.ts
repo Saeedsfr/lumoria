@@ -3,15 +3,16 @@ import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 import fs from "fs";
 
+const isProd = process.env.NODE_ENV === "production";
+
 export default defineConfig({
+  base: isProd ? "/lumoria/" : "/",
   plugins: [react()],
   define: {
-    // @ton/core و TonConnect در browser نیاز به global دارن
     global: "globalThis",
   },
   optimizeDeps: {
     esbuildOptions: {
-      // esbuild inject برای Buffer global (deprecated warning اشکالی نداره)
       inject: [resolve(__dirname, "src/inject-buffer.js")],
       define: { global: "globalThis" },
     },
@@ -19,9 +20,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    https: {
+    https: fs.existsSync(resolve(__dirname, "localhost-key.pem")) ? {
       key: fs.readFileSync(resolve(__dirname, "localhost-key.pem")),
       cert: fs.readFileSync(resolve(__dirname, "localhost-cert.pem")),
-    },
+    } : undefined,
   },
 });
