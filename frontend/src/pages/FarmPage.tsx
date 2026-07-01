@@ -650,8 +650,17 @@ export default function FarmPage() {
   const sapDisplay = useReal ? chainBalance : localSap.toString();
   const sapNum     = parseFloat(sapDisplay) || 0;
 
-  const [toolHP,  setToolHP]  = useState(100);
-  const [slots,   setSlots]   = useState<SlotState[]>(makeSlots(slotCount));
+  const [toolHP,  setToolHP]  = useState(() => {
+    const s = sessionStorage.getItem("lumoria_toolHP");
+    return s ? Number(s) : 100;
+  });
+  const [slots,   setSlots]   = useState<SlotState[]>(() => {
+    try {
+      const s = sessionStorage.getItem("lumoria_slots");
+      if (s) return JSON.parse(s) as SlotState[];
+    } catch { /* ignore */ }
+    return makeSlots(slotCount);
+  });
   const [selSlot, setSelSlot] = useState<number | null>(null);
   const [toasts,  setToasts]  = useState<Toast[]>([]);
   const [demo,    setDemo]    = useState(true);
@@ -662,6 +671,14 @@ export default function FarmPage() {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem("lumoria_slots", JSON.stringify(slots));
+  }, [slots]);
+
+  useEffect(() => {
+    sessionStorage.setItem("lumoria_toolHP", String(toolHP));
+  }, [toolHP]);
 
   useEffect(() => {
     setSlots(prev => {

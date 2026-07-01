@@ -173,7 +173,7 @@ function Sapling({ x, y, sc, p, rarity }: { x: number; y: number; sc: number; p:
       <ellipse cx={x} cy={y + 3} rx={10 * sc} ry={3.5 * sc}
         fill={p.glow} opacity={.12} />
       {/* PNG sprite */}
-      <image href={`/assets/game/tree_sapling_${rar}.png`}
+      <image href={`${import.meta.env.BASE_URL}assets/game/tree_sapling_${rar}.png`}
         x={imgX} y={imgY} width={dW} height={dH} />
       {/* tip glow pulse */}
       <circle cx={x - 2 * sc} cy={y - h * .96} r={5 * sc} fill={p.glow} opacity={.0}>
@@ -214,7 +214,7 @@ function FullTree({ x, y, sc, p, rarity, uid, idx }:
       </ellipse>
 
       {/* PNG tree sprite */}
-      <image href={`/assets/game/tree_full_${rar}.png`}
+      <image href={`${import.meta.env.BASE_URL}assets/game/tree_full_${rar}.png`}
         x={imgX} y={imgY} width={dW} height={dH} />
 
       {/* floating sparkle motes */}
