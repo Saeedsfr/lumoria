@@ -3,14 +3,18 @@
  * هر action یک تراکنش TON به CropManager می‌فرسته
  */
 
-import { useTonConnectUI } from "@tonconnect/ui-react";
+import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import { toNano } from "@ton/ton";
 import {
-  buildPlantCropBody,
+  buildPlantAction,
   buildHarvestBody,
-  buildRepairBody,
+  buildRepairAction,
+  buildSapPaymentBody,
+  getSapWalletAddress,
   getCropManagerAddr,
   isDeployed,
+  SEED_COST_NANO,
+  TOOL_SAP_NANO,
 } from "../lib/ton";
 
 interface SendResult {
@@ -20,23 +24,39 @@ interface SendResult {
 
 export function useGameActions() {
   const [tonConnectUI] = useTonConnectUI();
+  const myAddress = useTonAddress(false);
 
-  /** کشت — نیاز به 8 SAP دارد (on-chain بررسی می‌شه) */
+  /**
+   * کشت — پرداخت واقعی 8 SAP از طریق استاندارد Jetton Transfer.
+   * پیام به SAP wallet خودِ کاربر می‌ره (نه مستقیم به CropManager)؛
+   * خودِ wallet توکن رو منتقل می‌کنه و بعد transfer_notification همراه
+   * اکشن کاشت به CropManager می‌رسه — این‌جوریه که موجودی واقعاً کم می‌شه.
+   */
   async function plant(
     landId:    number,
     slotIndex: number,
     cropType = 0   // 0 = wheat, 1 = corn, ...
   ): Promise<SendResult> {
     if (!isDeployed()) return { ok: false, error: "قرارداد دپلوی نشده" };
+    if (!myAddress) return { ok: false, error: "ولت متصل نیست" };
     const nonce = Math.floor(Math.random() * 2 ** 32);
     try {
+      const myWallet = await getSapWalletAddress(myAddress);
+      if (!myWallet) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,  // 10 min
         messages: [
           {
-            address: getCropManagerAddr(),
-            amount:  toNano("0.06").toString(),   // gas برای CropManager + مینت SAP
-            payload: buildPlantCropBody(landId, slotIndex, cropType, nonce),
+            address: myWallet,
+            amount:  toNano("0.18").toString(),   // گاز برای کل زنجیره (wallet→wallet→CropManager)
+            payload: buildSapPaymentBody(
+              getCropManagerAddr(),
+              SEED_COST_NANO,
+              toNano("0.08"),
+              buildPlantAction(landId, slotIndex, cropType, nonce),
+              myAddress
+            ),
           },
         ],
       });
@@ -75,17 +95,27 @@ export function useGameActions() {
     }
   }
 
-  /** تعمیر ابزار */
+  /** تعمیر ابزار — پرداخت واقعی 5 SAP، مشابه plant() */
   async function repair(landId: number): Promise<SendResult> {
     if (!isDeployed()) return { ok: false, error: "قرارداد دپلوی نشده" };
+    if (!myAddress) return { ok: false, error: "ولت متصل نیست" };
     try {
+      const myWallet = await getSapWalletAddress(myAddress);
+      if (!myWallet) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [
           {
-            address: getCropManagerAddr(),
-            amount:  toNano("0.08").toString(),
-            payload: buildRepairBody(landId),
+            address: myWallet,
+            amount:  toNano("0.18").toString(),
+            payload: buildSapPaymentBody(
+              getCropManagerAddr(),
+              TOOL_SAP_NANO,
+              toNano("0.08"),
+              buildRepairAction(landId),
+              myAddress
+            ),
           },
         ],
       });

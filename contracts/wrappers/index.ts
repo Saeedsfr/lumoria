@@ -10,12 +10,14 @@ export {
   storeHarvestCrop,    loadHarvestCrop,
   storeRepairTools,    loadRepairTools,
   storeSetSAPMaster,   loadSetSAPMaster,
+  storeSetSAPWallet,   loadSetSAPWallet,
   storeCropState,      loadCropState,
   type RegisterLand,
   type PlantCrop,
   type HarvestCrop,
   type RepairTools,
   type SetSAPMaster,
+  type SetSAPWallet,
   type CropState,
 } from "../build/CropManager/CropManager_CropManager";
 
@@ -31,6 +33,12 @@ export {
   type SetMintable,
   type BurnPool,
 } from "../build/SAP/SAPJettonMaster_SAPJettonMaster";
+
+/* ── SAPJettonWallet ─────────────────────────────────────────── */
+export {
+  SAPJettonWallet,
+  type JettonWalletData,
+} from "../build/SAP/SAPJettonMaster_SAPJettonWallet";
 
 /* ── LandCollection ──────────────────────────────────────────── */
 export {

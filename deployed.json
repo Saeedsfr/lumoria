@@ -1,10 +1,10 @@
 {
   "network": "testnet",
-  "deployedAt": "2026-06-28T23:15:41.799Z",
+  "deployedAt": "2026-07-01T19:15:02.492Z",
   "deployer": "EQAkbj1T9XWcNxUD3R1o9dF3VfQpkgQ0UdlIrTtad9CUKLSr",
   "contracts": {
-    "CropManager": "EQD8WJr_NhsHUKL99eHyF0xg7Q23WJr_UPeOEnTtV85Hh-hn",
-    "SAPJettonMaster": "EQCxVfyOPphXqpnzcgvwoZ4QMJIvu48oPd1N6fmJSpjEK2mV",
+    "CropManager": "EQDmnYghbr23xTl2kiP4NJyf7Ukg_GiFGxElsxJRkFp7cmep",
+    "SAPJettonMaster": "EQCawWFo0RHsNU_iaCrcF3L1DCJj4nYm5nP6qwKo2u3nONFF",
     "LandCollection": "EQCEtXJu61XR6lWfhzDBx_RqkjaQhnzYLDWRqGwf0X7zCXsN"
   },
   "testLand": {

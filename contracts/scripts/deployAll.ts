@@ -110,6 +110,17 @@ export async function run(provider: NetworkProvider) {
   await sleep(15_000);   // ۱۵ ثانیه صبر — testnet کند است
   ui.write("           ✓ wired");
 
+  // آدرس SAP wallet خودِ CropManager — بدون این، پرداخت SAP هنگام کاشت/تعمیر رد می‌شود
+  ui.write("           CropManager.SetSAPWallet...");
+  const cropManagerWallet = await sapMaster.getGetWalletAddress(cropManager.address);
+  await cropManager.send(
+    sender,
+    { value: toNano("0.05") },
+    { $$type: "SetSAPWallet", newWallet: cropManagerWallet }
+  );
+  await sleep(15_000);
+  ui.write(`           ✓ wired → ${cropManagerWallet.toString()}`);
+
   /* ══ STEP 4: LandCollection ═══════════════════════════════════ */
   ui.write("[ 4 / 5 ]  LandCollection...");
 

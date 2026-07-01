@@ -31,6 +31,9 @@ message(0x1003) SetStewardship {
 message(0x1004) SetSAPMaster {
     newMaster: Address;
 }
+message(0x1005) SetSAPWallet {
+    newWallet: Address;
+}
 
 // ─── پیام‌های بازیکن ────────────────────────────────────────────────
 message(0x1010) PlantCrop {
@@ -95,6 +98,7 @@ contract CropManager with Upgradeable {
 
     owner:     Address;
     sapMaster: Address;
+    sapWallet: Address;   // آدرس SAP jetton-wallet خودِ این قرارداد — با SetSAPWallet تنظیم می‌شود
 
     lands:   map<Int, LandInfo>;
     crops:   map<Int, CropState>;
@@ -108,6 +112,7 @@ contract CropManager with Upgradeable {
     init(owner: Address, sapMaster: Address) {
         self.owner     = owner;
         self.sapMaster = sapMaster;
+        self.sapWallet = owner;   // placeholder — بعد از دیپلوی با SetSAPWallet درست می‌شود
     }
 
     // ── Admin: ثبت زمین ─────────────────────────────────────────────
@@ -176,15 +181,55 @@ contract CropManager with Upgradeable {
         self.sapMaster = msg.newMaster;
     }
 
-    // ── بازیکن: کاشت بذر ───────────────────────────────────────────
-    receive(msg: PlantCrop) {
-        let player: Address = sender();
+    receive(msg: SetSAPWallet) {
+        self.requireOwner();
+        self.sapWallet = msg.newWallet;
+    }
 
-        let landOpt: LandInfo? = self.lands.get(msg.landId);
+    // ── بازیکن: پرداخت SAP (Jetton transfer_notification) ───────────
+    // کاشت/تعمیر فقط از این مسیر انجام می‌شود؛ یعنی SAP واقعاً از کیف‌پول
+    // بازیکن کم می‌شود. اکشن داخل forward_payload به‌صورت یک سلول جدا
+    // (opcode مشابه پیام‌های قدیمی PlantCrop/RepairTools) رمزگذاری شده.
+    receive(msg: Slice) {
+        let op: Int = msg.loadUint(32);
+        require(op == 0x7362d09c, "CropManager: unknown message");
+        require(sender() == self.sapWallet, "CropManager: bad jetton sender");
+
+        msg.loadUint(64);                             // query_id
+        let amount: Int = msg.loadCoins();
+        let player: Address = msg.loadAddress();
+        let payloadOpt: Cell? = msg.loadMaybeRef();
+        require(payloadOpt != null, "CropManager: missing payload");
+
+        let payload: Slice = payloadOpt!!.asSlice();
+        let action: Int = payload.loadUint(32);
+
+        if (action == 0x1010) {    // PlantCrop
+            require(amount == SEED_COST, "CropManager: wrong SAP amount");
+            let landId:    Int = payload.loadUint(64);
+            let slotIndex: Int = payload.loadUint(8);
+            let cropType:  Int = payload.loadUint(8);
+            let nonce:     Int = payload.loadUint(64);
+            self._plant(player, landId, slotIndex, cropType, nonce);
+            return;
+        }
+
+        if (action == 0x1012) {    // RepairTools
+            require(amount == TOOL_SAP, "CropManager: wrong SAP amount");
+            let landId: Int = payload.loadUint(64);
+            self._repair(player, landId);
+            return;
+        }
+
+        require(false, "CropManager: unknown action");
+    }
+
+    fun _plant(player: Address, landId: Int, slotIndex: Int, cropType: Int, nonce: Int) {
+        let landOpt: LandInfo? = self.lands.get(landId);
         require(landOpt != null, "CropManager: land not found");
         let land: LandInfo = landOpt!!;
         require(land.owner == player, "CropManager: not your land");
-        require(msg.slotIndex < 16, "CropManager: bad slot index");
+        require(slotIndex < 16, "CropManager: bad slot index");
 
         let pOpt: PlayerInfo? = self.players.get(player);
         require(pOpt != null, "CropManager: player not registered");
@@ -199,7 +244,7 @@ contract CropManager with Upgradeable {
             "CropManager: stewardship capacity full"
         );
 
-        let cropKey: Int = msg.landId * 16 + msg.slotIndex;
+        let cropKey: Int = landId * 16 + slotIndex;
         let existingOpt: CropState? = self.crops.get(cropKey);
         if (existingOpt != null) {
             require(existingOpt!!.harvested, "CropManager: slot occupied");
@@ -209,11 +254,11 @@ contract CropManager with Upgradeable {
 
         let harvestTime: Int = now() + CYCLE_SEC;
         self.crops.set(cropKey, CropState{
-            cropType:  msg.cropType,
+            cropType:  cropType,
             plantedAt: now(),
             harvestAt: harvestTime,
             harvested: false,
-            nonce:     msg.nonce,
+            nonce:     nonce,
         });
 
         self.players.set(player, PlayerInfo{
@@ -224,7 +269,7 @@ contract CropManager with Upgradeable {
         });
 
         let newHP: Int = land.toolHP > 1 ? land.toolHP - 1 : 0;
-        self.lands.set(msg.landId, LandInfo{
+        self.lands.set(landId, LandInfo{
             owner:   land.owner,
             rarity:  land.rarity,
             lastTax: land.lastTax,
@@ -236,10 +281,32 @@ contract CropManager with Upgradeable {
 
         emit(beginCell()
             .storeUint(0x504c4e54, 32)   // 'PLNT'
-            .storeUint(msg.landId, 64)
-            .storeUint(msg.slotIndex, 8)
-            .storeUint(msg.cropType, 8)
+            .storeUint(landId, 64)
+            .storeUint(slotIndex, 8)
+            .storeUint(cropType, 8)
             .storeUint(harvestTime, 64)
+            .storeAddress(player)
+            .endCell());
+    }
+
+    fun _repair(player: Address, landId: Int) {
+        let landOpt: LandInfo? = self.lands.get(landId);
+        require(landOpt != null, "CropManager: land not found");
+        let land: LandInfo = landOpt!!;
+        require(land.owner == player, "CropManager: not your land");
+
+        self.lands.set(landId, LandInfo{
+            owner:   land.owner,
+            rarity:  land.rarity,
+            lastTax: land.lastTax,
+            toolHP:  100,
+        });
+
+        self.totalBurned += TOOL_SAP;
+
+        emit(beginCell()
+            .storeUint(0x52455052, 32)   // 'REPR'
+            .storeUint(landId, 64)
             .storeAddress(player)
             .endCell());
     }
@@ -297,29 +364,6 @@ contract CropManager with Upgradeable {
             .storeUint(msg.slotIndex, 8)
             .storeCoins(HARVEST_SAP)
             .storeAddress(player)
-            .endCell());
-    }
-
-    // ── بازیکن: تعمیر ابزار ─────────────────────────────────────────
-    receive(msg: RepairTools) {
-        let landOpt: LandInfo? = self.lands.get(msg.landId);
-        require(landOpt != null, "CropManager: land not found");
-        let land: LandInfo = landOpt!!;
-        require(land.owner == sender(), "CropManager: not your land");
-
-        self.lands.set(msg.landId, LandInfo{
-            owner:   land.owner,
-            rarity:  land.rarity,
-            lastTax: land.lastTax,
-            toolHP:  100,
-        });
-
-        self.totalBurned += TOOL_SAP;
-
-        emit(beginCell()
-            .storeUint(0x52455052, 32)   // 'REPR'
-            .storeUint(msg.landId, 64)
-            .storeAddress(sender())
             .endCell());
     }
 

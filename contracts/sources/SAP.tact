@@ -134,24 +134,48 @@ contract SAPJettonWallet {
     receive(msg: Slice) {
         let op: Int = msg.loadUint(32);
 
-        // InternalTransfer 0x178d4519
+        // InternalTransfer 0x178d4519 — از یک SAP wallet دیگر یا مینت از master
         if (op == 0x178d4519) {
-            msg.loadUint(64);
+            msg.loadUint(64);                          // query_id
             let amount: Int = msg.loadCoins();
+            let from:   Address = msg.loadAddress();
+            msg.loadAddress();                         // response_destination (بلااستفاده)
+            let forwardTon:     Int   = msg.loadCoins();
+            let forwardPayload: Cell? = msg.loadMaybeRef();
+
             require(amount > 0, "SAP Wallet: zero amount");
             self.balance += amount;
+
+            // اگر forward_ton_amount>0 باشد، طبق TEP-74 باید به owner اطلاع بدیم
+            // (این پیام برای فعال‌سازی اکشن‌های بازی مثل PlantCrop استفاده می‌شود)
+            if (forwardTon > 0) {
+                send(SendParameters{
+                    to:     self.owner,
+                    value:  forwardTon,
+                    bounce: false,
+                    mode:   SendPayGasSeparately,
+                    body: beginCell()
+                        .storeUint(0x7362d09c, 32)   // transfer_notification
+                        .storeUint(0, 64)
+                        .storeCoins(amount)
+                        .storeAddress(from)
+                        .storeMaybeRef(forwardPayload)
+                        .endCell(),
+                });
+            }
             return;
         }
 
-        // Transfer 0xf8a7ea5 — به کاربر دیگر
+        // Transfer 0xf8a7ea5 — به کاربر دیگر (یا پرداخت به یک قرارداد بازی)
         if (op == 0xf8a7ea5) {
             require(sender() == self.owner, "SAP Wallet: not owner");
-            msg.loadUint(64);
+            msg.loadUint(64);                          // query_id
             let amount:     Int     = msg.loadCoins();
             let to:         Address = msg.loadAddress();
-            msg.loadAddress();
-            msg.loadBit();
-            let forwardTon: Int = msg.loadCoins();
+            msg.loadAddress();                         // response_destination (بلااستفاده)
+            msg.loadMaybeRef();                        // custom_payload (بلااستفاده)
+            let forwardTon:     Int   = msg.loadCoins();
+            let forwardPayload: Cell? = msg.loadMaybeRef();
 
             require(self.balance >= amount, "SAP Wallet: insufficient");
             self.balance -= amount;
@@ -166,10 +190,10 @@ contract SAPJettonWallet {
                     .storeUint(0x178d4519, 32)
                     .storeUint(0, 64)
                     .storeCoins(amount)
-                    .storeAddress(myAddress())
-                    .storeAddress(to)
+                    .storeAddress(self.owner)
+                    .storeAddress(self.owner)
                     .storeCoins(forwardTon)
-                    .storeBit(false)
+                    .storeMaybeRef(forwardPayload)
                     .endCell(),
                 code: destInit.code,
                 data: destInit.data,
@@ -199,4 +223,22 @@ contract SAPJettonWallet {
     get fun balance(): Int    { return self.balance; }
     get fun owner():   Address { return self.owner;  }
     get fun master():  Address { return self.master; }
+
+    // ── گتر استاندارد TEP-74 — بدون این، ولت‌های خارجی (Tonkeeper و مشابه)
+    // این قرارداد را جتون‌ولت معتبر تشخیص نمی‌دهند و موجودی نمایش داده نمی‌شود
+    get fun get_wallet_data(): JettonWalletData {
+        return JettonWalletData{
+            balance:    self.balance,
+            owner:      self.owner,
+            master:     self.master,
+            walletCode: initOf SAPJettonWallet(self.owner, self.master).code,
+        };
+    }
+}
+
+struct JettonWalletData {
+    balance:    Int;
+    owner:      Address;
+    master:     Address;
+    walletCode: Cell;
 }

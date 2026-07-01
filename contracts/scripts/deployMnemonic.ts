@@ -26,6 +26,7 @@ import {
 import { Address } from "@ton/core";
 import { CropManager }     from "../build/CropManager/CropManager_CropManager";
 import { SAPJettonMaster } from "../build/SAP/SAPJettonMaster_SAPJettonMaster";
+import { SAPJettonWallet } from "../build/SAP/SAPJettonMaster_SAPJettonWallet";
 import { LandCollection }  from "../build/LandNFT/LandCollection_LandCollection";
 import * as fs from "fs";
 
@@ -195,6 +196,19 @@ async function main() {
     })
   );
   console.log("          ✓ wired");
+
+  // آدرس SAP wallet خودِ CropManager — بدون این، transfer_notification رد می‌شود
+  console.log("          CropManager.SetSAPWallet...");
+  const cmWalletInit = await SAPJettonWallet.fromInit(cmAddr, sapAddr);
+  const cmWalletAddr = cmWalletInit.address;
+  seqno = await sendAndWait(wallet, keys.secretKey, seqno,
+    internal({
+      to:    cmAddr,
+      value: toNano("0.05"),
+      body:  beginCell().storeUint(4101, 32).storeAddress(cmWalletAddr).endCell(),
+    })
+  );
+  console.log(`          ✓ wired → ${cmWalletAddr.toString()}`);
 
   /* ══ 4: LandCollection ══════════════════════════════════════ */
   console.log("\n[ 4 / 5 ]  LandCollection...");

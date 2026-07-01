@@ -4,7 +4,7 @@
  * TonConnect برای ارسال تراکنش استفاده می‌شه
  */
 
-import { beginCell } from "@ton/ton";
+import { beginCell, Address, Cell } from "@ton/ton";
 import deployed from "../config/deployed.json";
 
 const TONAPI = "https://testnet.tonapi.io/v2";
@@ -29,25 +29,33 @@ function toRawAddr(addr: string): string {
   return `${wc}:${hex}`;
 }
 
-export async function getSapBalance(userAddr: string): Promise<string> {
-  if (!isDeployed() || !userAddr) return "0";
+/** آدرس SAP jetton-wallet یک کاربر را از روی getter قرارداد master برمی‌گرداند (raw format) */
+export async function getSapWalletAddress(userAddr: string): Promise<string | null> {
+  if (!isDeployed() || !userAddr) return null;
   try {
     const masterRaw = toRawAddr(CONTRACTS.SAPJettonMaster);
     const userRaw   = toRawAddr(userAddr);
-
-    // گام ۱: آدرس SAP wallet کاربر از getter قرارداد
     const wRes = await fetch(
       `${TONAPI}/blockchain/accounts/${masterRaw}/methods/get_wallet_address?args=${userRaw}`,
       { headers: { Accept: "application/json" } }
     );
-    if (!wRes.ok) return "0";
+    if (!wRes.ok) return null;
     const wData = await wRes.json() as {
       decoded?: { jetton_wallet_address?: string };
     };
-    const walletRaw = wData.decoded?.jetton_wallet_address;
+    return wData.decoded?.jetton_wallet_address ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getSapBalance(userAddr: string): Promise<string> {
+  if (!isDeployed() || !userAddr) return "0";
+  try {
+    const walletRaw = await getSapWalletAddress(userAddr);
     if (!walletRaw) return "0";
 
-    // گام ۲: balance از SAP wallet
+    // balance از SAP wallet
     const bRes = await fetch(
       `${TONAPI}/blockchain/accounts/${walletRaw}/methods/balance`,
       { headers: { Accept: "application/json" } }
@@ -68,25 +76,26 @@ export async function getSapBalance(userAddr: string): Promise<string> {
 
 /* ── Message body builders (برای TonConnect sendTransaction) ─── */
 
-/** PlantCrop (opcode=4112=0x1010) */
-export function buildPlantCropBody(
+export const SEED_COST_NANO = 8_000_000_000n;   // 8 SAP
+export const TOOL_SAP_NANO  = 5_000_000_000n;   // 5 SAP
+
+/** بدنه اکشن PlantCrop (opcode=0x1010) — به‌عنوان forward_payload در Jetton Transfer استفاده می‌شود */
+export function buildPlantAction(
   landId:    number,
   slotIndex: number,
   cropType:  number,
   nonce:     number
-): string {
+): Cell {
   return beginCell()
-    .storeUint(4112, 32)
+    .storeUint(0x1010, 32)
     .storeUint(BigInt(landId),    64)
     .storeUint(BigInt(slotIndex), 8)
     .storeUint(BigInt(cropType),  8)
     .storeUint(BigInt(nonce),     64)
-    .endCell()
-    .toBoc()
-    .toString("base64");
+    .endCell();
 }
 
-/** HarvestCrop (opcode=4113=0x1011) */
+/** HarvestCrop (opcode=4113=0x1011) — بدون پرداخت، مستقیم به CropManager */
 export function buildHarvestBody(landId: number, slotIndex: number): string {
   return beginCell()
     .storeUint(4113, 32)
@@ -97,11 +106,36 @@ export function buildHarvestBody(landId: number, slotIndex: number): string {
     .toString("base64");
 }
 
-/** RepairTools (opcode=4114=0x1012) */
-export function buildRepairBody(landId: number): string {
+/** بدنه اکشن RepairTools (opcode=0x1012) — به‌عنوان forward_payload در Jetton Transfer استفاده می‌شود */
+export function buildRepairAction(landId: number): Cell {
   return beginCell()
-    .storeUint(4114, 32)
+    .storeUint(0x1012, 32)
     .storeUint(BigInt(landId), 64)
+    .endCell();
+}
+
+/**
+ * بدنه استاندارد Jetton Transfer (TEP-74) — برای پرداخت واقعی SAP همراه با اکشن بازی.
+ * این پیام باید به آدرس SAP wallet خودِ کاربر (نه CropManager) فرستاده شود؛
+ * خودِ wallet مبلغ رو به CropManager منتقل می‌کنه و forward_payload اکشن رو با
+ * transfer_notification به CropManager می‌رسونه.
+ */
+export function buildSapPaymentBody(
+  destination:    string,
+  amountNano:     bigint,
+  forwardTonNano: bigint,
+  forwardPayload: Cell,
+  responseAddr:   string
+): string {
+  return beginCell()
+    .storeUint(0xf8a7ea5, 32)
+    .storeUint(BigInt(Date.now()), 64)         // query_id
+    .storeCoins(amountNano)
+    .storeAddress(Address.parse(destination))
+    .storeAddress(Address.parse(responseAddr))
+    .storeMaybeRef(null)                        // custom_payload
+    .storeCoins(forwardTonNano)
+    .storeMaybeRef(forwardPayload)
     .endCell()
     .toBoc()
     .toString("base64");

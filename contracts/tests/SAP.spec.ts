@@ -2,6 +2,7 @@ import "@ton/test-utils";
 import { Blockchain, SandboxContract, TreasuryContract } from "@ton/sandbox";
 import { toNano, beginCell } from "@ton/core";
 import { SAPJettonMaster } from "../build/SAP/SAPJettonMaster_SAPJettonMaster";
+import { SAPJettonWallet } from "../build/SAP/SAPJettonMaster_SAPJettonWallet";
 
 describe("SAPJettonMaster", () => {
     let blockchain:   Blockchain;
@@ -129,5 +130,56 @@ describe("SAPJettonMaster", () => {
     it("wallet_address getter کار می‌کند", async () => {
         const walletAddr = await sapMaster.getGetWalletAddress(player.address);
         expect(walletAddr).toBeDefined();
+    });
+
+    it("get_wallet_data: استاندارد TEP-74 — بدون این Tonkeeper موجودی را نشان نمی‌دهد", async () => {
+        await sapMaster.send(
+            owner.getSender(),
+            { value: toNano("0.2") },
+            { $$type: "MintTo", amount: toNano("10"), to: player.address }
+        );
+        const walletAddr = await sapMaster.getGetWalletAddress(player.address);
+        const wallet = blockchain.openContract(SAPJettonWallet.fromAddress(walletAddr));
+
+        const data = await wallet.getGetWalletData();
+        expect(data.balance).toBe(toNano("10"));
+        expect(data.owner.equals(player.address)).toBe(true);
+        expect(data.master.equals(sapMaster.address)).toBe(true);
+    });
+
+    it("Transfer با forward payload: مقصد را transfer_notification با payload می‌رساند", async () => {
+        await sapMaster.send(
+            owner.getSender(),
+            { value: toNano("0.2") },
+            { $$type: "MintTo", amount: toNano("10"), to: player.address }
+        );
+        const playerWalletAddr = await sapMaster.getGetWalletAddress(player.address);
+        const playerWallet = blockchain.openContract(SAPJettonWallet.fromAddress(playerWalletAddr));
+
+        const recipient = await blockchain.treasury("recipient");
+        const payload = beginCell().storeUint(0xdead, 16).endCell();
+
+        const transferBody = beginCell()
+            .storeUint(0xf8a7ea5, 32)
+            .storeUint(0, 64)
+            .storeCoins(toNano("4"))
+            .storeAddress(recipient.address)
+            .storeAddress(player.address)
+            .storeMaybeRef(null)
+            .storeCoins(toNano("0.05"))
+            .storeMaybeRef(payload)
+            .endCell();
+
+        const tx = await playerWallet.send(player.getSender(), { value: toNano("0.2") }, transferBody.asSlice());
+        expect(tx.transactions).toHaveTransaction({ success: true });
+        expect(tx.transactions).toHaveTransaction({ to: recipient.address, success: true });
+
+        const recipientWalletAddr = await sapMaster.getGetWalletAddress(recipient.address);
+        const recipientWallet = blockchain.openContract(SAPJettonWallet.fromAddress(recipientWalletAddr));
+        const data = await recipientWallet.getGetWalletData();
+        expect(data.balance).toBe(toNano("4"));
+
+        const playerData = await playerWallet.getGetWalletData();
+        expect(playerData.balance).toBe(toNano("6"));
     });
 });
