@@ -15,7 +15,7 @@ const LAND_ID         = 0;
 const SEED_COST       = 8;
 const HARVEST_REWARD  = 10;
 const TOOL_REPAIR_SAP = 5;
-const REAL_CYCLE_MS   = 4 * 60 * 60 * 1000;
+const REAL_CYCLE_MS   = 5 * 60 * 1000;  // testnet: 5min (mainnet: 4 * 60 * 60 * 1000)
 const DEMO_CYCLE_MS   = 30_000;
 
 const T = {

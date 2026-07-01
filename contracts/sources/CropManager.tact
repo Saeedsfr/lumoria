@@ -9,7 +9,7 @@ import "./traits/Upgradeable.tact";
 
 const SEED_COST:  Int = 8000000000;
 const HARVEST_SAP:Int = 10000000000;
-const CYCLE_SEC:  Int = 14400;
+const CYCLE_SEC:  Int = 300;   // testnet: 5 min (mainnet: 14400 = 4h)
 const TAX_BPS:    Int = 1000;
 const TOOL_SAP:   Int = 5000000000;
 const RATE_LIMIT: Int = 300;
