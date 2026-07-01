@@ -691,7 +691,12 @@ export default function FarmPage() {
       const r = await actions.plant(LAND_ID, selSlot);
       setTxBusy(false);
       if (!r.ok) { if (r.error) toast(r.error, false); return; }
-      toast("تراکنش ارسال شد ✓");
+      const t0 = Date.now();
+      setSlots(prev => prev.map((s, i) =>
+        i === selSlot ? { stage: "growing" as SlotStage, plantedAt: t0, harvestAt: t0 + REAL_CYCLE_MS } : s
+      ));
+      setToolHP(h => Math.max(0, h - 1));
+      toast("بذر کاشته شد 🌱");
       setTimeout(refreshBalance, 10_000);
       return;
     }
