@@ -12,7 +12,7 @@ const HARVEST_SAP:Int = 10000000000;
 const CYCLE_SEC:  Int = 300;   // testnet: 5 min (mainnet: 14400 = 4h)
 const TAX_BPS:    Int = 1000;
 const TOOL_SAP:   Int = 5000000000;
-const RATE_LIMIT: Int = 300;
+const RATE_LIMIT: Int = 10;    // testnet: 10 sec (mainnet: 300)
 
 // ─── پیام‌های Admin ─────────────────────────────────────────────────
 message(0x1001) RegisterLand {
@@ -48,6 +48,10 @@ message(0x1012) RepairTools {
 }
 message(0x1013) CollectLandTax {
     landId: Int as uint64;
+}
+message(0x1014) AdminResetSlot {
+    landId:    Int as uint64;
+    slotIndex: Int as uint8;
 }
 
 // ─── ساختار پیام Mint به SAPJettonMaster ────────────────────────────
@@ -317,6 +321,25 @@ contract CropManager with Upgradeable {
             .storeUint(msg.landId, 64)
             .storeAddress(sender())
             .endCell());
+    }
+
+    // ── Admin: reset slot (فقط testnet) ─────────────────────────
+    receive(msg: AdminResetSlot) {
+        self.requireOwner();
+        let cropKey: Int = msg.landId * 16 + msg.slotIndex;
+        self.crops.set(cropKey, CropState{
+            cropType: 0, plantedAt: 0, harvestAt: 0,
+            harvested: true, nonce: 0,
+        });
+        let pOpt: PlayerInfo? = self.players.get(sender());
+        if (pOpt != null) {
+            let p: PlayerInfo = pOpt!!;
+            let newActive: Int = p.activeCrops > 0 ? p.activeCrops - 1 : 0;
+            self.players.set(sender(), PlayerInfo{
+                stewardship: p.stewardship, activeCrops: newActive,
+                lastActionAt: 0, totalHarvests: p.totalHarvests,
+            });
+        }
     }
 
     // ── Admin: مالیات روزانه ─────────────────────────────────────────
