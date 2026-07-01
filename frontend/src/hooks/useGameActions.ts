@@ -4,7 +4,7 @@
  */
 
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
-import { toNano } from "@ton/ton";
+import { toNano, Address } from "@ton/ton";
 import {
   buildPlantAction,
   buildHarvestBody,
@@ -41,8 +41,10 @@ export function useGameActions() {
     if (!myAddress) return { ok: false, error: "ولت متصل نیست" };
     const nonce = Math.floor(Math.random() * 2 ** 32);
     try {
-      const myWallet = await getSapWalletAddress(myAddress);
-      if (!myWallet) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+      const myWalletRaw = await getSapWalletAddress(myAddress);
+      if (!myWalletRaw) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+      // TonConnect به آدرس friendly نیاز داره — tonapi فرمت raw (0:hex) برمی‌گردونه
+      const myWallet = Address.parse(myWalletRaw).toString();
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,  // 10 min
@@ -100,8 +102,10 @@ export function useGameActions() {
     if (!isDeployed()) return { ok: false, error: "قرارداد دپلوی نشده" };
     if (!myAddress) return { ok: false, error: "ولت متصل نیست" };
     try {
-      const myWallet = await getSapWalletAddress(myAddress);
-      if (!myWallet) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+      const myWalletRaw = await getSapWalletAddress(myAddress);
+      if (!myWalletRaw) return { ok: false, error: "آدرس SAP wallet یافت نشد" };
+      // TonConnect به آدرس friendly نیاز داره — tonapi فرمت raw (0:hex) برمی‌گردونه
+      const myWallet = Address.parse(myWalletRaw).toString();
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
