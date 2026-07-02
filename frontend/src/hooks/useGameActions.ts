@@ -47,7 +47,7 @@ export function useGameActions() {
       const myWallet = Address.parse(myWalletRaw).toString();
 
       await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,  // 10 min
+        validUntil: Math.floor(Date.now() / 1000) + 280,  // SDK بیش از 5 دقیقه رو رد می‌کنه
         messages: [
           {
             address: myWallet,
@@ -78,7 +78,7 @@ export function useGameActions() {
     if (!isDeployed()) return { ok: false, error: "قرارداد دپلوی نشده" };
     try {
       await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
+        validUntil: Math.floor(Date.now() / 1000) + 280,  // SDK بیش از 5 دقیقه رو رد می‌کنه
         messages: [
           {
             address: getCropManagerAddr(),
@@ -108,7 +108,7 @@ export function useGameActions() {
       const myWallet = Address.parse(myWalletRaw).toString();
 
       await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
+        validUntil: Math.floor(Date.now() / 1000) + 280,  // SDK بیش از 5 دقیقه رو رد می‌کنه
         messages: [
           {
             address: myWallet,
