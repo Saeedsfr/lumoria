@@ -14,7 +14,8 @@
  */
 
 import { NetworkProvider } from "@ton/blueprint";
-import { toNano, beginCell, Cell } from "@ton/core";
+import { toNano, beginCell, Cell, Dictionary } from "@ton/core";
+import { createHash } from "crypto";
 import { SAPJettonMaster } from "../build/SAP/SAPJettonMaster_SAPJettonMaster";
 import { LandCollection } from "../build/LandNFT/LandCollection_LandCollection";
 import { CropManager } from "../build/CropManager/CropManager_CropManager";
@@ -24,18 +25,24 @@ import * as path from "path";
 /* ── کمکی: سکوت n میلی‌ثانیه (صبر برای تأیید tx) ─────────────── */
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
-/* ── Jetton metadata — ساده‌ترین فرم on-chain (TEP-64) ────────── */
-function jettonContent(name: string, symbol: string): Cell {
-  // snake-cell با فلگ 0x00 = on-chain
-  const snake = beginCell()
-    .storeUint(0x00, 8)
-    .storeStringTail(
-      JSON.stringify({ name, symbol, decimals: "9", description: "Lumoria game token" })
-    )
-    .endCell();
-  return beginCell()
-    .storeRef(snake)
-    .endCell();
+/* ── Jetton metadata — فرمت استاندارد on-chain (TEP-64) ─────────
+   content$_ onchain_marker#00 data:(HashmapE 256 ^Cell) = FullContent;
+   کلید هر attribute = sha256(نام attribute)، مقدار = snake-cell (0x00 + متن) */
+function snakeCell(value: string): Cell {
+  return beginCell().storeUint(0x00, 8).storeBuffer(Buffer.from(value, "utf8")).endCell();
+}
+
+function attrKey(name: string): bigint {
+  return BigInt("0x" + createHash("sha256").update(name).digest("hex"));
+}
+
+export function jettonContent(name: string, symbol: string): Cell {
+  const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
+  dict.set(attrKey("name"), snakeCell(name));
+  dict.set(attrKey("symbol"), snakeCell(symbol));
+  dict.set(attrKey("decimals"), snakeCell("9"));
+  dict.set(attrKey("description"), snakeCell("Lumoria game token"));
+  return beginCell().storeUint(0x00, 8).storeDict(dict).endCell();
 }
 
 /* ── Collection metadata ────────────────────────────────────────── */

@@ -21,6 +21,9 @@ message(0x2003) MintTo {
 message(0x2004) BurnPool {
     amount: Int as coins;
 }
+message(0x2005) SetContent {
+    content: Cell;
+}
 
 // ─── Jetton Master ──────────────────────────────────────────────────
 contract SAPJettonMaster with Upgradeable {
@@ -58,6 +61,11 @@ contract SAPJettonMaster with Upgradeable {
     receive(msg: SetMintable) {
         self.requireOwner();
         self.mintable = msg.mintable;
+    }
+
+    receive(msg: SetContent) {
+        self.requireOwner();
+        self.content = msg.content;
     }
 
     // ── Burn اطلاع از wallet ها ─────────────────────────────────────
